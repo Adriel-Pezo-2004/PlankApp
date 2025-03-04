@@ -1,34 +1,58 @@
 {
-  "hash": "3c6169f4",
-  "configHash": "def2be11",
+  "hash": "36c32a09",
+  "configHash": "28fcb6b3",
   "lockfileHash": "98b1f97e",
-  "browserHash": "191d6d8f",
+  "browserHash": "4ac44f6a",
   "optimized": {
+    "@angular/common": {
+      "src": "../../../../../../node_modules/@angular/common/fesm2022/common.mjs",
+      "file": "@angular_common.js",
+      "fileHash": "00186152",
+      "needsInterop": false
+    },
+    "@angular/common/http": {
+      "src": "../../../../../../node_modules/@angular/common/fesm2022/http.mjs",
+      "file": "@angular_common_http.js",
+      "fileHash": "54acdd29",
+      "needsInterop": false
+    },
     "@angular/core": {
       "src": "../../../../../../node_modules/@angular/core/fesm2022/core.mjs",
       "file": "@angular_core.js",
-      "fileHash": "d74f3952",
+      "fileHash": "564b0a0b",
+      "needsInterop": false
+    },
+    "@angular/forms": {
+      "src": "../../../../../../node_modules/@angular/forms/fesm2022/forms.mjs",
+      "file": "@angular_forms.js",
+      "fileHash": "3af5aebc",
       "needsInterop": false
     },
     "@angular/platform-browser": {
       "src": "../../../../../../node_modules/@angular/platform-browser/fesm2022/platform-browser.mjs",
       "file": "@angular_platform-browser.js",
-      "fileHash": "d9d54de2",
+      "fileHash": "b6ee0992",
       "needsInterop": false
     },
     "@angular/router": {
       "src": "../../../../../../node_modules/@angular/router/fesm2022/router.mjs",
       "file": "@angular_router.js",
-      "fileHash": "a2dd7a31",
+      "fileHash": "110ec2fd",
       "needsInterop": false
     }
   },
   "chunks": {
-    "chunk-LBLNSRMX": {
-      "file": "chunk-LBLNSRMX.js"
+    "chunk-FEPMRNQZ": {
+      "file": "chunk-FEPMRNQZ.js"
     },
-    "chunk-SZBLJUHW": {
-      "file": "chunk-SZBLJUHW.js"
+    "chunk-XHKEBEFI": {
+      "file": "chunk-XHKEBEFI.js"
+    },
+    "chunk-MSJSAKTH": {
+      "file": "chunk-MSJSAKTH.js"
+    },
+    "chunk-NAMEVOEZ": {
+      "file": "chunk-NAMEVOEZ.js"
     }
   }
 }
