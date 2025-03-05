@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { HttpClientModule } from '@angular/common/http';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-buscar-artistas',
@@ -24,18 +25,19 @@ import { HttpClientModule } from '@angular/common/http';
     <div *ngIf="exactMatch">
       <h2>Coincidencia Exacta</h2>
       <ul>
-        <li>
+        <li (click)="verDetalleArtista(exactMatch.id)"> <!-- Añadir click -->
           <img [src]="exactMatch.images?.[0]?.url" alt="Imagen del artista" width="50" height="50"/>
           {{ exactMatch.name }}
         </li>
       </ul>
     </div>
 
-    <!-- Sugerencias (si no hay coincidencia exacta) -->
+    <!-- Sugerencias -->
     <div *ngIf="topResults.length">
       <h2>Resultados Similares</h2>
       <ul>
-        <li *ngFor="let artista of topResults">
+        <li *ngFor="let artista of topResults" 
+            (click)="verDetalleArtista(artista.id)"> <!-- Añadir click -->
           <img [src]="artista.images?.[0]?.url" alt="Imagen del artista" width="50" height="50"/>
           {{ artista.name }}
         </li>
@@ -57,7 +59,15 @@ export class BuscarArtistasComponent {
   error: string = '';
   searchPerformed: boolean = false;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private router: Router // <-- Inyectar Router
+  ) {}
+
+  // Añadir nuevo método
+  verDetalleArtista(artistId: string): void {
+    this.router.navigate(['/artista', artistId]);
+  }
 
   buscarArtistas(): void {
     if (!this.query.trim()) {

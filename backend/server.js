@@ -76,6 +76,50 @@ async function getSpotifyToken() {
   }
 }
 
+// Configuración Swagger
+const swaggerOptions = {
+  definition: {
+      openapi: "3.0.0",
+      info: {
+          title: "PlankApp API",
+          version: "1.0.0",
+          description: "Documentación de API con Swagger en Node.js",
+      },
+      servers: [{ url: `http://localhost:${PORT}` }],
+  },
+  apis: ["./server.js"], // Apuntar a este mismo archivo para leer los comentarios JSDoc
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+/**
+* @swagger
+* /api/buscar-artista:
+*   get:
+*     summary: Buscar un artista en Spotify
+*     parameters:
+*       - in: query
+*         name: q
+*         required: true
+*         description: Nombre del artista a buscar
+*         schema:
+*           type: string
+*     responses:
+*       200:
+*         description: Lista de artistas encontrados
+*         content:
+*           application/json:
+*             schema:
+*               type: array
+*               items:
+*                 type: object
+*       400:
+*         description: Falta el parámetro de búsqueda
+*       500:
+*         description: Error en la búsqueda de Spotify
+*/
+
 // Ruta para buscar artistas en Spotify
 app.get('/api/buscar-artista', async (req, res) => {
   try {
@@ -134,50 +178,77 @@ app.get('/api/buscar-artista', async (req, res) => {
   }
 });
 
-// Configuración Swagger
-const swaggerOptions = {
-  definition: {
-      openapi: "3.0.0",
-      info: {
-          title: "PlankApp API",
-          version: "1.0.0",
-          description: "Documentación de API con Swagger en Node.js",
-      },
-      servers: [{ url: `http://localhost:${PORT}` }],
-  },
-  apis: ["./server.js"], // Apuntar a este mismo archivo para leer los comentarios JSDoc
-};
 
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-
+// Nueva ruta para obtener detalles completos del artista
 /**
 * @swagger
-* /api/buscar-artista:
+* /api/artista-detalle/{id}:
 *   get:
-*     summary: Buscar un artista en Spotify
+*     summary: Obtiene todos los álbumes y canciones de un artista
 *     parameters:
-*       - in: query
-*         name: q
+*       - in: path
+*         name: id
 *         required: true
-*         description: Nombre del artista a buscar
-*         schema:
-*           type: string
+*         description: ID de Spotify del artista
 *     responses:
 *       200:
-*         description: Lista de artistas encontrados
-*         content:
-*           application/json:
-*             schema:
-*               type: array
-*               items:
-*                 type: object
-*       400:
-*         description: Falta el parámetro de búsqueda
+*         description: Detalles completos del artista
 *       500:
-*         description: Error en la búsqueda de Spotify
+*         description: Error al obtener datos
 */
+app.get('/api/artista-detalle/:artistId', async (req, res) => {
+  try {
+    const { artistId } = req.params;
+    const token = await getSpotifyToken();
+    
+    // 1. Obtener información del artista
+    const artistResponse = await axios.get(`https://api.spotify.com/v1/artists/${artistId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    // 2. Obtener todos los álbumes
+    const albumsResponse = await axios.get(`https://api.spotify.com/v1/artists/${artistId}/albums`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      params: { include_groups: 'album,single,appears_on', limit: 50 }
+    });
 
+    // 3. Procesar álbumes con canciones
+    const albumsWithTracks = await Promise.all(
+      albumsResponse.data.items.map(async album => {
+        const tracksResponse = await axios.get(`https://api.spotify.com/v1/albums/${album.id}/tracks`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+          params: { limit: 50 }
+        });
+        
+        return {
+          id: album.id,
+          name: album.name,
+          type: album.album_type,
+          release_date: album.release_date,
+          total_tracks: album.total_tracks,
+          tracks: tracksResponse.data.items
+        };
+      })
+    );
+
+    // 4. Clasificar por tipo
+    const categorized = {
+      albums: albumsWithTracks.filter(a => a.type === 'album'),
+      singles: albumsWithTracks.filter(a => a.type === 'single'),
+      compilations: albumsWithTracks.filter(a => a.type === 'compilation'),
+      appearances: albumsWithTracks.filter(a => a.type === 'appears_on')
+    };
+
+    res.json({
+      artist: artistResponse.data,
+      ...categorized
+    });
+
+  } catch (error) {
+    console.error('Error en artista-detalle:', error);
+    res.status(500).json({ error: 'Error al obtener datos del artista' });
+  }
+});
 
 // Ruta para buscar álbumes de un artista
 app.get('/api/albumes/:artistId', async (req, res) => {
