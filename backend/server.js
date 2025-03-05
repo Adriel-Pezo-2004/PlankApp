@@ -6,6 +6,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+const Fuse = require('fuse.js');
 
 dotenv.config();
 
@@ -33,7 +34,6 @@ const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://localho
 // Variable para almacenar el token de acceso
 let spotifyToken = null;
 let tokenExpirationTime = null;
-
 
 // Conexión a la base de datos
 async function getConnection() {
@@ -76,50 +76,6 @@ async function getSpotifyToken() {
   }
 }
 
-// Configuración Swagger
-const swaggerOptions = {
-    definition: {
-        openapi: "3.0.0",
-        info: {
-            title: "PlankApp API",
-            version: "1.0.0",
-            description: "Documentación de API con Swagger en Node.js",
-        },
-        servers: [{ url: `http://localhost:${PORT}` }],
-    },
-    apis: ["./server.js"], // Apuntar a este mismo archivo para leer los comentarios JSDoc
-};
-
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-
-/**
- * @swagger
- * /api/buscar-artista:
- *   get:
- *     summary: Buscar un artista en Spotify
- *     parameters:
- *       - in: query
- *         name: q
- *         required: true
- *         description: Nombre del artista a buscar
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Lista de artistas encontrados
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *       400:
- *         description: Falta el parámetro de búsqueda
- *       500:
- *         description: Error en la búsqueda de Spotify
- */
-
 // Ruta para buscar artistas en Spotify
 app.get('/api/buscar-artista', async (req, res) => {
   try {
@@ -136,16 +92,92 @@ app.get('/api/buscar-artista', async (req, res) => {
       params: {
         q,
         type: 'artist',
-        limit: 10
+        limit: 50 // Obtener más resultados para aplicar la búsqueda difusa
       }
     });
 
-    res.json(response.data.artists.items);
+    const artists = response.data.artists.items;
+
+    // Verificar si hay una coincidencia exacta (sin variaciones en mayúsculas/minúsculas)
+    const exactMatch = artists.find(artist => 
+      artist.name.toLowerCase().trim() === q.toLowerCase().trim()
+    );
+
+    // Configurar Fuse.js para la búsqueda difusa con configuraciones más precisas
+    const fuse = new Fuse(artists, {
+      keys: ['name'],
+      threshold: 0.3, // Umbral de similitud
+      distance: 3, // Permite correcciones de hasta 3 letras
+      includeScore: true // Incluir puntuación de similitud
+    });
+
+    // Realizar la búsqueda difusa
+    const fuzzyResults = fuse.search(q);
+
+    // Filtrar los resultados por similitud
+    const topResults = fuzzyResults
+      .filter(result => result.score <= 0.4) // Resultados muy similares
+      .slice(0, 3) // Limitar a 3 resultados
+      .map(result => result.item);
+
+    return res.json({
+      exactMatch: exactMatch || null,
+      topResults
+    });
+
   } catch (error) {
     console.error('Error al buscar artista:', error);
-    res.status(500).json({ error: 'Error al buscar artista en Spotify' });
+    res.status(500).json({ 
+      error: 'Error al buscar artista en Spotify',
+      details: error.response?.data || error.message 
+    });
   }
 });
+
+// Configuración Swagger
+const swaggerOptions = {
+  definition: {
+      openapi: "3.0.0",
+      info: {
+          title: "PlankApp API",
+          version: "1.0.0",
+          description: "Documentación de API con Swagger en Node.js",
+      },
+      servers: [{ url: `http://localhost:${PORT}` }],
+  },
+  apis: ["./server.js"], // Apuntar a este mismo archivo para leer los comentarios JSDoc
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+/**
+* @swagger
+* /api/buscar-artista:
+*   get:
+*     summary: Buscar un artista en Spotify
+*     parameters:
+*       - in: query
+*         name: q
+*         required: true
+*         description: Nombre del artista a buscar
+*         schema:
+*           type: string
+*     responses:
+*       200:
+*         description: Lista de artistas encontrados
+*         content:
+*           application/json:
+*             schema:
+*               type: array
+*               items:
+*                 type: object
+*       400:
+*         description: Falta el parámetro de búsqueda
+*       500:
+*         description: Error en la búsqueda de Spotify
+*/
+
 
 // Ruta para buscar álbumes de un artista
 app.get('/api/albumes/:artistId', async (req, res) => {
