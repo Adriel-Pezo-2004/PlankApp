@@ -206,10 +206,15 @@ app.get('/api/artista-detalle/:artistId', async (req, res) => {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
-    // 2. Obtener todos los álbumes
+    // 2. Obtener todos los álbumes con sus imágenes
+    // La API de Spotify ya incluye las imágenes en esta respuesta
     const albumsResponse = await axios.get(`https://api.spotify.com/v1/artists/${artistId}/albums`, {
       headers: { 'Authorization': `Bearer ${token}` },
-      params: { include_groups: 'album,single,appears_on', limit: 50 }
+      params: { 
+        include_groups: 'album,single,appears_on', 
+        limit: 50,
+        market: 'ES' // Añadimos market para obtener disponibilidad regional
+      }
     });
 
     // 3. Procesar álbumes con canciones
@@ -220,12 +225,16 @@ app.get('/api/artista-detalle/:artistId', async (req, res) => {
           params: { limit: 50 }
         });
         
+        // Ya tenemos las imágenes del álbum desde la respuesta inicial
         return {
           id: album.id,
           name: album.name,
           type: album.album_type,
           release_date: album.release_date,
           total_tracks: album.total_tracks,
+          images: album.images, // Las imágenes ya vienen incluidas aquí
+          uri: album.uri,
+          external_urls: album.external_urls,
           tracks: tracksResponse.data.items
         };
       })
@@ -235,17 +244,15 @@ app.get('/api/artista-detalle/:artistId', async (req, res) => {
     const categorized = {
       albums: albumsWithTracks.filter(a => a.type === 'album'),
       singles: albumsWithTracks.filter(a => a.type === 'single'),
-      compilations: albumsWithTracks.filter(a => a.type === 'compilation'),
       appearances: albumsWithTracks.filter(a => a.type === 'appears_on')
     };
 
     res.json({
-      artist: artistResponse.data,
+      artist: artistResponse.data, // Esto ya incluye las imágenes del artista
       ...categorized
     });
-
   } catch (error) {
-    console.error('Error en artista-detalle:', error);
+    console.error('Error en artista-detalle:', error.response?.data || error.message);
     res.status(500).json({ error: 'Error al obtener datos del artista' });
   }
 });

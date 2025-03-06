@@ -1,0 +1,319 @@
+// Estilos generales
+.main-container {
+    width: 100%;
+    overflow-y: auto;
+    background-color: #121212;
+    color: #fff;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    
+    // Nueva lógica
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    &::-webkit-scrollbar {
+        width: 8px;
+        background-color: transparent;
+      }
+      
+      &::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+      }
+      
+      &::-webkit-scrollbar-track {
+        background-color: transparent;
+      }
+      
+      // Para Firefox
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+  
+.artist-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+  
+// Estilos para el estado de carga y error
+.loading, .error {
+    padding: 20px;
+    text-align: center;
+    color: #fff;
+    font-size: 18px;
+}
+  
+// Header del artista (estilo Spotify)
+.artist-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.5)), var(--artist-color, #535353);
+    padding: 60px 30px 30px;
+    width: 100%;
+    box-sizing: border-box;
+}
+  
+// Estilos para la imagen del artista
+.artist-img {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    object-fit: cover;
+}
+  
+// Estilos para el título del artista
+h1.artist-name {
+    font-size: 42px;
+    font-weight: 900;
+    margin-bottom: 15px;
+    letter-spacing: -0.04em;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 100%;
+    width: 100%;
+}
+  
+// Contenido principal
+.main-content {
+    padding: 16px 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+  
+// Estilos para los títulos de sección (Álbumes, Sencillos, Apariciones)
+h2 {
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+  
+// Grid para mostrar álbumes/singles en formato cuadrícula
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); // 4 columnas
+    gap: 2rem;
+    width: 100%;
+}  
+
+// Estilos para las tarjetas de álbumes, sencillos y apariciones
+.album-card {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease-in-out;
+    background: #181818;
+    padding: 16px;
+    border-radius: 6px;
+    transition: background-color 0.3s ease, opacity 0.5s ease, transform 0.5s ease;
+    opacity: 0;
+    transform: translateY(20px);
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+  
+    &.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  
+    &:hover {
+      background-color: #282828;
+    }
+  
+    .album-content {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 8px;
+      flex-direction: column;
+      align-items: center;
+    }
+  
+    .album-info {
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+      margin-top: 10px;
+    }
+  
+    .album-img {
+      width: 100%;
+      max-width: 150px;
+      border-radius: 8px;
+      margin-right: 0;
+    }
+  
+    h3.album-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin: 0 0 4px 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      width: 100%;
+    }
+  
+    .album-year {
+      font-size: 13px;
+      color: #b3b3b3;
+      margin-bottom: 4px;
+    }
+  
+    .tracks-container {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.5s ease, padding 0.5s ease, background-color 0.5s ease;
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      background: transparent; // Fondo transparente por defecto
+      border-radius: 8px;
+      margin-top: 10px;
+  
+      &.expanded {
+        max-height: 200px; // Altura máxima para el contenedor de canciones
+        padding: 10px;
+        overflow-y: auto; // Permitir scroll vertical si es necesario
+        background: rgba(41, 41, 41, 0.9); // Fondo semi-transparente al expandirse
+        &::-webkit-scrollbar {
+            width: 6px;
+          }
+          
+          &::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2);
+          }
+          
+          &::-webkit-scrollbar-track {
+            background-color: transparent;
+          }
+          
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+      }
+  
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column; // Mostrar las canciones en una columna
+        gap: 8px;
+      }
+    }
+  
+    li {
+      padding: 8px 12px;
+      color: #b3b3b3;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      background: rgba(51, 51, 51, 0.8); // Fondo semi-transparente para las canciones
+      border-radius: 5px;
+      transition: background-color 0.3s ease, color 0.3s ease;
+  
+      &:hover {
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+  
+      .track-number {
+        margin-right: 12px;
+        color: #b3b3b3;
+        flex-shrink: 0;
+        width: 20px;
+      }
+  
+      .track-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+      }
+    }
+  
+    .show-more {
+      color: #1db954;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: center;
+      margin-top: 10px;
+      font-weight: 500;
+      transition: color 0.3s ease;
+  
+      &:hover {
+        color: #fff;
+      }
+    }
+  }
+
+  .toggle-bar {
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    &.active {
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+    
+    .toggle-icon {
+      margin-right: 8px;
+      transform: rotate(0deg);
+      transition: transform 0.3s ease;
+    }
+    
+    &.expanded .toggle-icon {
+      transform: rotate(180deg);
+    }
+  }
+  
+
+// Botón de reproducir (típico de Spotify)
+.play-button {
+    background-color: #1db954;
+    color: #fff;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 8px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: all 0.3s;
+  
+    &:hover {
+        transform: scale(1.05);
+        background-color: #1ed760;
+    }
+  
+    svg {
+        fill: #fff;
+        width: 24px;
+        height: 24px;
+    }
+}

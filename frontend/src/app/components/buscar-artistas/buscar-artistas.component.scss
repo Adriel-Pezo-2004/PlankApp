@@ -4,6 +4,14 @@
   font-family: "Outfit", sans-serif;
 }
 
+.buscar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  max-width: 100%;
+}
+
 .buscador {
   display: flex;
   gap: 10px;
@@ -64,7 +72,7 @@ li {
   align-items: center;
   gap: 10px;
   margin-bottom: 5px;
-  width: 100%;
+  width: 20rem;
   max-width: 400px;
   padding: 10px;
   border: 1px solid #ccc;

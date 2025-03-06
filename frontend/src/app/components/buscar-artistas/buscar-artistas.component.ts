@@ -10,6 +10,7 @@ import { Router } from '@angular/router';
   standalone: true,
   imports: [CommonModule, FormsModule, HttpClientModule],
   template: `
+  <div class="buscar-container">
     <div class="buscador">
       <input [(ngModel)]="query" placeholder="Buscar artista" />
       <button (click)="buscarArtistas()" [disabled]="loading">Buscar</button>
@@ -48,6 +49,7 @@ import { Router } from '@angular/router';
     <div *ngIf="searchPerformed && !exactMatch && !topResults.length && !loading && !error">
       <h2>No se encontró ningún artista</h2>
     </div>
+  </div>
   `,
   styleUrls: ['./buscar-artistas.component.scss']
 })
