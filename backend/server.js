@@ -7,6 +7,8 @@ const dotenv = require('dotenv');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const Fuse = require('fuse.js');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 dotenv.config();
 
@@ -20,7 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Configuración de la base de datos
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || 'localhost:8080',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'root',
   database: process.env.DB_NAME || 'plankapp'
@@ -34,7 +36,7 @@ const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://localho
 // Variable para almacenar el token de acceso
 let spotifyToken = null;
 let tokenExpirationTime = null;
-
+const JWT_SECRET = process.env.JWT_SECRET || 'tu_clave_secreta';
 // Conexión a la base de datos
 async function getConnection() {
   try {
@@ -302,404 +304,73 @@ app.get('/api/canciones/:albumId', async (req, res) => {
   }
 });
 
-// Ruta para guardar un artista en la base de datos
-app.post('/api/artistas', async (req, res) => {
-  const { nombre, spotify_id } = req.body;
-  
-  if (!nombre) {
-    return res.status(400).json({ error: 'El nombre del artista es requerido' });
+// Ruta para registrar un nuevo usuario
+app.post('/api/register', async (req, res) => {
+  const { nombre, correo, contraseña } = req.body;
+
+  if (!nombre || !correo || !contraseña) {
+    return res.status(400).json({ error: 'Todos los campos son requeridos' });
   }
-  
+
   let connection;
   try {
     connection = await getConnection();
-    
-    // Verificar si el artista ya existe
-    const [existingArtists] = await connection.execute('SELECT * FROM artistas WHERE nombre = ?', [nombre]);
-    
-    if (existingArtists.length > 0) {
-      return res.json({ message: 'El artista ya existe', id: existingArtists[0].id });
-    }
-    
-    // Insertar el nuevo artista
+    const hashedPassword = await bcrypt.hash(contraseña, 10);
+
     const [result] = await connection.execute(
-      'INSERT INTO artistas (nombre, spotify_id) VALUES (?, ?)',
-      [nombre, spotify_id || null]
+      'INSERT INTO usuarios (nombre, correo, contraseña) VALUES (?, ?, ?)',
+      [nombre, correo, hashedPassword]
     );
-    
-    res.status(201).json({ 
-      message: 'Artista guardado correctamente', 
-      id: result.insertId 
-    });
+
+    res.status(201).json({ message: 'Usuario registrado correctamente', id: result.insertId });
   } catch (error) {
-    console.error('Error al guardar artista:', error);
-    res.status(500).json({ error: 'Error al guardar artista en la base de datos' });
+    console.error('Error al registrar usuario:', error);
+    res.status(500).json({ error: 'Error al registrar usuario' });
   } finally {
     if (connection) connection.end();
   }
 });
 
-// Ruta para guardar un álbum en la base de datos
-app.post('/api/albumes', async (req, res) => {
-  const { titulo, artista_id, año_lanzamiento, es_sencillo, spotify_id } = req.body;
-  
-  if (!titulo || !artista_id) {
-    return res.status(400).json({ error: 'El título y el ID del artista son requeridos' });
+// Ruta para iniciar sesión
+app.post('/api/login', async (req, res) => {
+  const { correo, contraseña } = req.body;
+
+  if (!correo || !contraseña) {
+    return res.status(400).json({ error: 'Correo y contraseña son requeridos' });
   }
-  
+
   let connection;
   try {
     connection = await getConnection();
-    
-    // Verificar si el álbum ya existe
-    const [existingAlbums] = await connection.execute(
-      'SELECT * FROM albumes WHERE titulo = ? AND artista_id = ?', 
-      [titulo, artista_id]
-    );
-    
-    if (existingAlbums.length > 0) {
-      return res.json({ message: 'El álbum ya existe', id: existingAlbums[0].id });
+    console.log('Correo recibido:', correo); // Log para verificar el correo recibido
+    const [rows] = await connection.execute('SELECT * FROM usuarios WHERE correo = ?', [correo]);
+
+    if (rows.length === 0) {
+      console.log('Usuario no encontrado'); // Log para verificar si el usuario no fue encontrado
+      return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
     }
-    
-    // Insertar el nuevo álbum
-    const [result] = await connection.execute(
-      'INSERT INTO albumes (titulo, artista_id, año_lanzamiento, es_sencillo, spotify_id) VALUES (?, ?, ?, ?, ?)',
-      [titulo, artista_id, año_lanzamiento || null, es_sencillo || false, spotify_id || null]
-    );
-    
-    res.status(201).json({ 
-      message: 'Álbum guardado correctamente', 
-      id: result.insertId 
+
+    const user = rows[0];
+    console.log('Usuario encontrado:', user); // Log para verificar el usuario encontrado
+
+    if (contraseña !== user.contraseña) {
+      console.log('Contraseña incorrecta'); // Log para verificar si la contraseña es incorrecta
+      return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+    }
+
+    const token = jwt.sign({ id: user.id, nombre: user.nombre, correo: user.correo }, JWT_SECRET, {
+      expiresIn: '1h'
     });
+
+    res.json({ message: 'Inicio de sesión exitoso', token });
   } catch (error) {
-    console.error('Error al guardar álbum:', error);
-    res.status(500).json({ error: 'Error al guardar álbum en la base de datos' });
+    console.error('Error al iniciar sesión:', error);
+    res.status(500).json({ error: 'Error al iniciar sesión' });
   } finally {
     if (connection) connection.end();
   }
 });
 
-// Ruta para guardar una canción en la base de datos
-app.post('/api/canciones', async (req, res) => {
-  const { nombre, artista_id, album_id, duracion, spotify_id } = req.body;
-  
-  if (!nombre || !artista_id || !album_id || !duracion) {
-    return res.status(400).json({ 
-      error: 'El nombre, ID del artista, ID del álbum y duración son requeridos' 
-    });
-  }
-  
-  let connection;
-  try {
-    connection = await getConnection();
-    
-    // Verificar si la canción ya existe
-    const [existingSongs] = await connection.execute(
-      'SELECT * FROM canciones WHERE nombre = ? AND artista_id = ? AND album_id = ?', 
-      [nombre, artista_id, album_id]
-    );
-    
-    if (existingSongs.length > 0) {
-      return res.json({ message: 'La canción ya existe', id: existingSongs[0].id });
-    }
-    
-    // Insertar la nueva canción
-    const [result] = await connection.execute(
-      'INSERT INTO canciones (nombre, artista_id, album_id, duracion, spotify_id) VALUES (?, ?, ?, ?, ?)',
-      [nombre, artista_id, album_id, duracion, spotify_id || null]
-    );
-    
-    res.status(201).json({ 
-      message: 'Canción guardada correctamente', 
-      id: result.insertId 
-    });
-  } catch (error) {
-    console.error('Error al guardar canción:', error);
-    res.status(500).json({ error: 'Error al guardar canción en la base de datos' });
-  } finally {
-    if (connection) connection.end();
-  }
-});
-
-// Ruta para añadir una canción a la lista ToDo de un usuario
-app.post('/api/todo', async (req, res) => {
-  const { usuario_id, cancion_id } = req.body;
-  
-  if (!usuario_id || !cancion_id) {
-    return res.status(400).json({ error: 'El ID del usuario y el ID de la canción son requeridos' });
-  }
-  
-  let connection;
-  try {
-    connection = await getConnection();
-    
-    // Verificar si la entrada ya existe
-    const [existingEntries] = await connection.execute(
-      'SELECT * FROM todo_canciones WHERE usuario_id = ? AND cancion_id = ?', 
-      [usuario_id, cancion_id]
-    );
-    
-    if (existingEntries.length > 0) {
-      return res.json({ 
-        message: 'La canción ya está en la lista ToDo del usuario', 
-        id: existingEntries[0].id 
-      });
-    }
-    
-    // Insertar la nueva entrada
-    const [result] = await connection.execute(
-      'INSERT INTO todo_canciones (usuario_id, cancion_id) VALUES (?, ?)',
-      [usuario_id, cancion_id]
-    );
-    
-    res.status(201).json({ 
-      message: 'Canción añadida a la lista ToDo correctamente', 
-      id: result.insertId 
-    });
-  } catch (error) {
-    console.error('Error al añadir canción a la lista ToDo:', error);
-    res.status(500).json({ error: 'Error al añadir canción a la lista ToDo' });
-  } finally {
-    if (connection) connection.end();
-  }
-});
-
-// Ruta para marcar una canción como completada
-app.put('/api/todo/:id/completar', async (req, res) => {
-  const { id } = req.params;
-  
-  let connection;
-  try {
-    connection = await getConnection();
-    
-    const [result] = await connection.execute(
-      'UPDATE todo_canciones SET completado = TRUE, fecha_completado = CURRENT_TIMESTAMP WHERE id = ?',
-      [id]
-    );
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Entrada no encontrada' });
-    }
-    
-    res.json({ message: 'Canción marcada como completada' });
-  } catch (error) {
-    console.error('Error al marcar canción como completada:', error);
-    res.status(500).json({ error: 'Error al marcar canción como completada' });
-  } finally {
-    if (connection) connection.end();
-  }
-});
-
-// Ruta para obtener la lista ToDo de un usuario
-app.get('/api/todo/:usuarioId', async (req, res) => {
-  const { usuarioId } = req.params;
-  const { completado } = req.query;
-  
-  let connection;
-  try {
-    connection = await getConnection();
-    
-    let query = `
-      SELECT tc.*, c.nombre as cancion_nombre, a.nombre as artista_nombre, al.titulo as album_titulo
-      FROM todo_canciones tc
-      JOIN canciones c ON tc.cancion_id = c.id
-      JOIN artistas a ON c.artista_id = a.id
-      JOIN albumes al ON c.album_id = al.id
-      WHERE tc.usuario_id = ?
-    `;
-    
-    const params = [usuarioId];
-    
-    if (completado !== undefined) {
-      query += ' AND tc.completado = ?';
-      params.push(completado === 'true' ? 1 : 0);
-    }
-    
-    const [rows] = await connection.execute(query, params);
-    
-    res.json(rows);
-  } catch (error) {
-    console.error('Error al obtener lista ToDo:', error);
-    res.status(500).json({ error: 'Error al obtener lista ToDo' });
-  } finally {
-    if (connection) connection.end();
-  }
-});
-
-// Ruta para importar un lote de canciones desde Spotify
-app.post('/api/importar-spotify', async (req, res) => {
-  const { spotify_artist_id, usuario_id } = req.body;
-  
-  if (!spotify_artist_id) {
-    return res.status(400).json({ error: 'El ID de Spotify del artista es requerido' });
-  }
-  
-  let connection;
-  try {
-    connection = await getConnection();
-    const token = await getSpotifyToken();
-    
-    // 1. Obtener información del artista
-    const artistResponse = await axios.get(`https://api.spotify.com/v1/artists/${spotify_artist_id}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    const artistName = artistResponse.data.name;
-    
-    // 2. Guardar o encontrar el artista en la base de datos
-    const [existingArtists] = await connection.execute(
-      'SELECT * FROM artistas WHERE spotify_id = ? OR nombre = ?', 
-      [spotify_artist_id, artistName]
-    );
-    
-    let artistId;
-    if (existingArtists.length > 0) {
-      artistId = existingArtists[0].id;
-      // Actualizar spotify_id si no lo tenía
-      if (!existingArtists[0].spotify_id) {
-        await connection.execute(
-          'UPDATE artistas SET spotify_id = ? WHERE id = ?',
-          [spotify_artist_id, artistId]
-        );
-      }
-    } else {
-      // Insertar nuevo artista
-      const [artistResult] = await connection.execute(
-        'INSERT INTO artistas (nombre, spotify_id) VALUES (?, ?)',
-        [artistName, spotify_artist_id]
-      );
-      artistId = artistResult.insertId;
-    }
-    
-    // 3. Obtener álbumes del artista
-    const albumsResponse = await axios.get(`https://api.spotify.com/v1/artists/${spotify_artist_id}/albums`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      params: {
-        include_groups: 'album,single',
-        limit: 50
-      }
-    });
-    
-    // 4. Procesar cada álbum y sus canciones
-    const albumPromises = albumsResponse.data.items.map(async (album) => {
-      // Guardar o encontrar el álbum
-      const esSencillo = album.album_type === 'single';
-      const añoLanzamiento = album.release_date ? parseInt(album.release_date.substring(0, 4)) : null;
-      
-      const [existingAlbums] = await connection.execute(
-        'SELECT * FROM albumes WHERE spotify_id = ? OR (titulo = ? AND artista_id = ?)', 
-        [album.id, album.name, artistId]
-      );
-      
-      let albumId;
-      if (existingAlbums.length > 0) {
-        albumId = existingAlbums[0].id;
-        // Actualizar spotify_id si no lo tenía
-        if (!existingAlbums[0].spotify_id) {
-          await connection.execute(
-            'UPDATE albumes SET spotify_id = ? WHERE id = ?',
-            [album.id, albumId]
-          );
-        }
-      } else {
-        // Insertar nuevo álbum
-        const [albumResult] = await connection.execute(
-          'INSERT INTO albumes (titulo, artista_id, año_lanzamiento, es_sencillo, spotify_id) VALUES (?, ?, ?, ?, ?)',
-          [album.name, artistId, añoLanzamiento, esSencillo, album.id]
-        );
-        albumId = albumResult.insertId;
-      }
-      
-      // Obtener canciones del álbum
-      const tracksResponse = await axios.get(`https://api.spotify.com/v1/albums/${album.id}/tracks`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        params: { limit: 50 }
-      });
-      
-      // Procesar cada canción
-      const trackPromises = tracksResponse.data.items.map(async (track) => {
-        // Convertir duración de ms a formato TIME (HH:MM:SS)
-        const durationMs = track.duration_ms;
-        const seconds = Math.floor((durationMs / 1000) % 60);
-        const minutes = Math.floor((durationMs / (1000 * 60)) % 60);
-        const hours = Math.floor((durationMs / (1000 * 60 * 60)) % 24);
-        
-        const duracion = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        
-        // Guardar o encontrar la canción
-        const [existingSongs] = await connection.execute(
-          'SELECT * FROM canciones WHERE spotify_id = ? OR (nombre = ? AND artista_id = ? AND album_id = ?)', 
-          [track.id, track.name, artistId, albumId]
-        );
-        
-        let songId;
-        if (existingSongs.length > 0) {
-          songId = existingSongs[0].id;
-          // Actualizar spotify_id si no lo tenía
-          if (!existingSongs[0].spotify_id) {
-            await connection.execute(
-              'UPDATE canciones SET spotify_id = ? WHERE id = ?',
-              [track.id, songId]
-            );
-          }
-        } else {
-          // Insertar nueva canción
-          const [songResult] = await connection.execute(
-            'INSERT INTO canciones (nombre, artista_id, album_id, duracion, spotify_id) VALUES (?, ?, ?, ?, ?)',
-            [track.name, artistId, albumId, duracion, track.id]
-          );
-          songId = songResult.insertId;
-        }
-        
-        // Si se proporcionó un ID de usuario, añadir a su lista ToDo
-        if (usuario_id) {
-          // Verificar si ya está en la lista
-          const [existingTodo] = await connection.execute(
-            'SELECT * FROM todo_canciones WHERE usuario_id = ? AND cancion_id = ?', 
-            [usuario_id, songId]
-          );
-          
-          if (existingTodo.length === 0) {
-            await connection.execute(
-              'INSERT INTO todo_canciones (usuario_id, cancion_id) VALUES (?, ?)',
-              [usuario_id, songId]
-            );
-          }
-        }
-        
-        return { id: songId, nombre: track.name };
-      });
-      
-      const canciones = await Promise.all(trackPromises);
-      
-      return {
-        id: albumId,
-        titulo: album.name,
-        año_lanzamiento: añoLanzamiento,
-        es_sencillo: esSencillo,
-        canciones
-      };
-    });
-    
-    const albumes = await Promise.all(albumPromises);
-    
-    res.json({
-      message: 'Importación completada con éxito',
-      artista: {
-        id: artistId,
-        nombre: artistName,
-        spotify_id: spotify_artist_id
-      },
-      albumes
-    });
-    
-  } catch (error) {
-    console.error('Error al importar desde Spotify:', error);
-    res.status(500).json({ error: 'Error al importar desde Spotify' });
-  } finally {
-    if (connection) connection.end();
-  }
-});
 
 // Iniciar el servidor
 app.listen(PORT, () => {
