@@ -362,7 +362,7 @@ app.post('/api/login', async (req, res) => {
       expiresIn: '1h'
     });
 
-    res.json({ message: 'Inicio de sesión exitoso', token });
+    res.json({ message: 'Inicio de sesión exitoso', token, user });
   } catch (error) {
     console.error('Error al iniciar sesión:', error);
     res.status(500).json({ error: 'Error al iniciar sesión' });
@@ -371,6 +371,51 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Ruta para cerrar sesión (opcional, generalmente se maneja en el frontend)
+app.post('/api/logout', (req, res) => {
+  // Aquí puedes realizar cualquier acción adicional necesaria para el cierre de sesión
+  res.json({ message: 'Cierre de sesión exitoso' });
+});
+
+// Ruta para iniciar sesión
+app.post('/api/login', async (req, res) => {
+  const { correo, contraseña } = req.body;
+
+  if (!correo || !contraseña) {
+    return res.status(400).json({ error: 'Correo y contraseña son requeridos' });
+  }
+
+  let connection;
+  try {
+    connection = await getConnection();
+    console.log('Correo recibido:', correo); // Log para verificar el correo recibido
+    const [rows] = await connection.execute('SELECT * FROM usuarios WHERE correo = ?', [correo]);
+
+    if (rows.length === 0) {
+      console.log('Usuario no encontrado'); // Log para verificar si el usuario no fue encontrado
+      return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+    }
+
+    const user = rows[0];
+    console.log('Usuario encontrado:', user); // Log para verificar el usuario encontrado
+
+    if (contraseña !== user.contraseña) {
+      console.log('Contraseña incorrecta'); // Log para verificar si la contraseña es incorrecta
+      return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+    }
+
+    const token = jwt.sign({ id: user.id, nombre: user.nombre, correo: user.correo }, JWT_SECRET, {
+      expiresIn: '1h'
+    });
+
+    res.json({ message: 'Inicio de sesión exitoso', token, user });
+  } catch (error) {
+    console.error('Error al iniciar sesión:', error);
+    res.status(500).json({ error: 'Error al iniciar sesión' });
+  } finally {
+    if (connection) connection.end();
+  }
+});
 
 // Iniciar el servidor
 app.listen(PORT, () => {

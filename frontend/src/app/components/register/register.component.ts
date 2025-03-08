@@ -9,25 +9,27 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [ReactiveFormsModule, HttpClientModule, CommonModule], 
   template: `
-    <header>
-      <h2>Registro de Usuario</h2>
-    </header>
-    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
-      <div>
-        <label for="name">Nombre:</label>
-        <input type="text" id="name" formControlName="name" required>
-      </div>
-      <div>
-        <label for="email">Correo Electrónico:</label>
-        <input type="email" id="email" formControlName="email" required>
-      </div>
-      <div>
-        <label for="password">Contraseña:</label>
-        <input type="password" id="password" formControlName="password" required>
-      </div>
-      <button type="submit">Registrar</button>
-    </form>
-    <p *ngIf="errorMessage">{{ errorMessage }}</p>
+    <div class="register-container">
+      <header>
+        <h2>Registro de Usuario</h2>
+      </header>
+      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+        <div>
+          <label for="name">Nombre:</label>
+          <input type="text" id="name" formControlName="name" required>
+        </div>
+        <div>
+          <label for="email">Correo Electrónico:</label>
+          <input type="email" id="email" formControlName="email" required>
+        </div>
+        <div>
+          <label for="password">Contraseña:</label>
+          <input type="password" id="password" formControlName="password" required>
+        </div>
+        <button type="submit">Registrar</button>
+      </form>
+      <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+    </div>
   `,
   styleUrls: ['./register.component.scss']
 })

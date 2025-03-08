@@ -26,8 +26,15 @@ import { Router } from '@angular/router';
     <div *ngIf="exactMatch">
       <h2>Coincidencia Exacta</h2>
       <ul>
-        <li (click)="verDetalleArtista(exactMatch.id)"> <!-- Añadir click -->
-          <img [src]="exactMatch.images?.[0]?.url" alt="Imagen del artista" width="50" height="50"/>
+        <li (click)="verDetalleArtista(exactMatch.id)">
+          <img *ngIf="exactMatch.images?.[0]?.url; else defaultImage" 
+               [src]="exactMatch.images[0].url" 
+               alt="Imagen del artista" 
+               width="50" 
+               height="50"/>
+          <ng-template #defaultImage>
+            <img src="assets/default-user.png" alt="Imagen por defecto" width="50" height="50"/>
+          </ng-template>
           {{ exactMatch.name }}
         </li>
       </ul>
@@ -38,8 +45,18 @@ import { Router } from '@angular/router';
       <h2>Resultados Similares</h2>
       <ul>
         <li *ngFor="let artista of topResults" 
-            (click)="verDetalleArtista(artista.id)"> <!-- Añadir click -->
-          <img [src]="artista.images?.[0]?.url" alt="Imagen del artista" width="50" height="50"/>
+            (click)="verDetalleArtista(artista.id)">
+          <img *ngIf="artista.images?.[0]?.url; else defaultImage" 
+               [src]="artista.images[0].url" 
+               alt="Imagen del artista" 
+               width="50" 
+               height="50"/>
+          <ng-template #defaultImage>
+            <svg width="50" height="50" viewBox="0 0 24 24" fill="black" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="8" r="4"></circle>
+              <path d="M4 20c0-4 4-7 8-7s8 3 8 7"></path>
+            </svg>
+          </ng-template>
           {{ artista.name }}
         </li>
       </ul>
@@ -63,10 +80,9 @@ export class BuscarArtistasComponent {
 
   constructor(
     private http: HttpClient,
-    private router: Router // <-- Inyectar Router
+    private router: Router
   ) {}
 
-  // Añadir nuevo método
   verDetalleArtista(artistId: string): void {
     this.router.navigate(['/artista', artistId]);
   }
@@ -77,12 +93,11 @@ export class BuscarArtistasComponent {
       return;
     }
 
-    // Reiniciar estados
     this.loading = true;
     this.error = '';
     this.exactMatch = null;
     this.topResults = [];
-    this.searchPerformed = true; // Se ha iniciado una búsqueda
+    this.searchPerformed = true;
 
     this.http.get<any>(`http://localhost:3000/api/buscar-artista?q=${this.query}`)
       .subscribe({
