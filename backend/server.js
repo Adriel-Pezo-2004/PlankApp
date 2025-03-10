@@ -305,15 +305,6 @@ app.get('/api/canciones/:albumId', async (req, res) => {
 });
 
 // Ruta para registrar un nuevo usuario
-
-// Ruta para cerrar sesión (opcional, generalmente se maneja en el frontend)
-app.post('/api/logout', (req, res) => {
-  // Aquí puedes realizar cualquier acción adicional necesaria para el cierre de sesión
-  res.json({ message: 'Cierre de sesión exitoso' });
-});
-
-// Ruta para iniciar sesión que maneja contraseñas hasheadas
-// Ruta para registrar un nuevo usuario
 app.post('/api/register', async (req, res) => {
   const { nombre, correo, contraseña } = req.body;
 
@@ -324,13 +315,30 @@ app.post('/api/register', async (req, res) => {
   let connection;
   try {
     connection = await getConnection();
-
+    
+    // Verificar si el correo ya existe
+    const [existingUsers] = await connection.execute(
+      'SELECT id FROM usuarios WHERE correo = ?',
+      [correo]
+    );
+    
+    if (existingUsers.length > 0) {
+      return res.status(409).json({ error: 'Este correo electrónico ya está registrado' });
+    }
+    
+    // Encriptar la contraseña
+    const hashedPassword = await bcrypt.hash(contraseña, 10);
+    
+    // Almacenar la contraseña encriptada
     const [result] = await connection.execute(
       'INSERT INTO usuarios (nombre, correo, contraseña) VALUES (?, ?, ?)',
-      [nombre, correo, contraseña] // Sin hashear la contraseña
+      [nombre, correo, hashedPassword]
     );
 
-    res.status(201).json({ message: 'Usuario registrado correctamente', id: result.insertId });
+    res.status(201).json({ 
+      message: 'Usuario registrado correctamente', 
+      id: result.insertId 
+    });
   } catch (error) {
     console.error('Error al registrar usuario:', error);
     res.status(500).json({ error: 'Error al registrar usuario' });
@@ -338,6 +346,7 @@ app.post('/api/register', async (req, res) => {
     if (connection) connection.end();
   }
 });
+
 // Ruta para iniciar sesión
 app.post('/api/login', async (req, res) => {
   const { correo, contraseña } = req.body;
@@ -357,7 +366,9 @@ app.post('/api/login', async (req, res) => {
 
     const user = rows[0];
 
-    if (contraseña !== user.contraseña) {
+    // Verificar la contraseña encriptada
+    const isPasswordValid = await bcrypt.compare(contraseña, user.contraseña);
+    if (!isPasswordValid) {
       return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
     }
 
@@ -373,6 +384,13 @@ app.post('/api/login', async (req, res) => {
     if (connection) connection.end();
   }
 });
+
+// Ruta para cerrar sesión (opcional, generalmente se maneja en el frontend)
+app.post('/api/logout', (req, res) => {
+  // Aquí puedes realizar cualquier acción adicional necesaria para el cierre de sesión
+  res.json({ message: 'Cierre de sesión exitoso' });
+});
+
 // Iniciar el servidor
 app.listen(PORT, () => {
   console.log(`Servidor iniciado en http://localhost:${PORT}`);
