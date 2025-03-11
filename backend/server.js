@@ -384,6 +384,239 @@ app.post('/api/login', async (req, res) => {
     if (connection) connection.end();
   }
 });
+// Add this route to your server.js file
+
+/**
+* @swagger
+* /api/update-profile:
+*   put:
+*     summary: Update user profile information
+*     description: Updates a user's name and email in the database
+*     security:
+*       - bearerAuth: []
+*     requestBody:
+*       content:
+*         application/json:
+*           schema:
+*             type: object
+*             required:
+*               - id
+*             properties:
+*               id:
+*                 type: integer
+*                 description: User ID
+*               nombre:
+*                 type: string
+*                 description: New name for the user
+*               correo:
+*                 type: string
+*                 description: New email for the user
+*     responses:
+*       200:
+*         description: Profile updated successfully
+*       400:
+*         description: Missing required fields
+*       401:
+*         description: Unauthorized - Invalid token
+*       409:
+*         description: Email already in use
+*       500:
+*         description: Server error
+*/
+
+// Middleware to verify JWT token
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token no proporcionado' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Token inválido' });
+  }
+};
+
+// Route to update user profile
+app.put('/api/update-profile', verifyToken, async (req, res) => {
+  const { id, nombre, correo } = req.body;
+
+  // Verify the user ID from token matches the requested update ID
+  if (req.user.id !== id) {
+    return res.status(401).json({ error: 'No tienes permiso para actualizar este perfil' });
+  }
+
+  if (!id) {
+    return res.status(400).json({ error: 'El ID del usuario es requerido' });
+  }
+
+  // At least one field to update is required
+  if (!nombre && !correo) {
+    return res.status(400).json({ error: 'Se requiere al menos un campo para actualizar' });
+  }
+
+  let connection;
+  try {
+    connection = await getConnection();
+    
+    // If email is being updated, check if it's already in use by another user
+    if (correo) {
+      const [existingUsers] = await connection.execute(
+        'SELECT id FROM usuarios WHERE correo = ? AND id != ?',
+        [correo, id]
+      );
+      
+      if (existingUsers.length > 0) {
+        return res.status(409).json({ error: 'Este correo electrónico ya está en uso' });
+      }
+    }
+    
+    // Build the update query dynamically based on provided fields
+    let updateQuery = 'UPDATE usuarios SET';
+    const updateValues = [];
+    
+    if (nombre) {
+      updateQuery += ' nombre = ?';
+      updateValues.push(nombre);
+    }
+    
+    if (correo) {
+      if (nombre) updateQuery += ',';
+      updateQuery += ' correo = ?';
+      updateValues.push(correo);
+    }
+    
+    updateQuery += ' WHERE id = ?';
+    updateValues.push(id);
+    
+    // Execute the update
+    await connection.execute(updateQuery, updateValues);
+    
+    // Get updated user data
+    const [updatedUser] = await connection.execute(
+      'SELECT id, nombre, correo, fecha_registro FROM usuarios WHERE id = ?',
+      [id]
+    );
+    
+    if (updatedUser.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    
+    // Generate new token with updated info
+    const newToken = jwt.sign({ 
+      id: updatedUser[0].id, 
+      nombre: updatedUser[0].nombre, 
+      correo: updatedUser[0].correo 
+    }, JWT_SECRET, {
+      expiresIn: '1h'
+    });
+    
+    res.json({ 
+      message: 'Perfil actualizado correctamente',
+      user: updatedUser[0],
+      token: newToken
+    });
+  } catch (error) {
+    console.error('Error al actualizar perfil:', error);
+    res.status(500).json({ error: 'Error al actualizar el perfil' });
+  } finally {
+    if (connection) connection.end();
+  }
+});
+
+// Route to change password
+/**
+* @swagger
+* /api/change-password:
+*   put:
+*     summary: Change user password
+*     description: Updates a user's password in the database
+*     security:
+*       - bearerAuth: []
+*     requestBody:
+*       content:
+*         application/json:
+*           schema:
+*             type: object
+*             required:
+*               - id
+*               - contraseñaActual
+*               - nuevaContraseña
+*             properties:
+*               id:
+*                 type: integer
+*                 description: User ID
+*               contraseñaActual:
+*                 type: string
+*                 description: Current password
+*               nuevaContraseña:
+*                 type: string
+*                 description: New password
+*     responses:
+*       200:
+*         description: Password changed successfully
+*       400:
+*         description: Missing required fields
+*       401:
+*         description: Incorrect current password
+*       500:
+*         description: Server error
+*/
+app.put('/api/change-password', verifyToken, async (req, res) => {
+  const { id, contraseñaActual, nuevaContraseña } = req.body;
+  
+  // Verify the user ID from token matches the requested update ID
+  if (req.user.id !== id) {
+    return res.status(401).json({ error: 'No tienes permiso para cambiar esta contraseña' });
+  }
+
+  if (!id || !contraseñaActual || !nuevaContraseña) {
+    return res.status(400).json({ error: 'Todos los campos son requeridos' });
+  }
+
+  let connection;
+  try {
+    connection = await getConnection();
+    
+    // Get current user data with password
+    const [users] = await connection.execute(
+      'SELECT * FROM usuarios WHERE id = ?',
+      [id]
+    );
+    
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    
+    const user = users[0];
+    
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(contraseñaActual, user.contraseña);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+    }
+    
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(nuevaContraseña, 10);
+    
+    // Update password
+    await connection.execute(
+      'UPDATE usuarios SET contraseña = ? WHERE id = ?',
+      [hashedPassword, id]
+    );
+    
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (error) {
+    console.error('Error al cambiar contraseña:', error);
+    res.status(500).json({ error: 'Error al cambiar la contraseña' });
+  } finally {
+    if (connection) connection.end();
+  }
+});
 
 // Ruta para cerrar sesión (opcional, generalmente se maneja en el frontend)
 app.post('/api/logout', (req, res) => {

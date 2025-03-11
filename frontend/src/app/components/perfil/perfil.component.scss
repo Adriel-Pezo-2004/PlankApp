@@ -57,19 +57,19 @@ header h2 {
   font-size: 28px;
   margin-bottom: 10px;
   font-weight: 700;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
   color: #333;
 }
 
 p {
   font-size: 16px;
   margin: 10px 0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
 }
 
 button {
   display: block;
-  margin: 20px auto;
+  margin: 10px auto;
   padding: 14px;
   background-color: #007bff;
   color: white;
@@ -78,10 +78,100 @@ button {
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
   transition: background-color 0.2s;
+  min-width: 150px;
 }
 
 button:hover {
   background-color: #0056b3;
+}
+
+button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  width: 100%;
+}
+
+@media (min-width: 480px) {
+  .button-group {
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  button {
+    margin: 5px;
+  }
+}
+
+.edit-btn {
+  background-color: #28a745;
+}
+
+.edit-btn:hover {
+  background-color: #218838;
+}
+
+.password-btn {
+  background-color: #6c757d;
+}
+
+.password-btn:hover {
+  background-color: #5a6268;
+}
+
+.back-btn {
+  background-color: #007bff;
+}
+
+.edit-form {
+  width: 100%;
+  text-align: left;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  font-family: 'Outfit', sans-serif;
+  color: #333;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  font-family: 'Outfit', sans-serif;
+}
+
+.form-message {
+  background-color: rgba(40, 167, 69, 0.2);
+  color: #218838;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+  text-align: center;
+}
+
+.form-error {
+  background-color: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+  text-align: center;
 }

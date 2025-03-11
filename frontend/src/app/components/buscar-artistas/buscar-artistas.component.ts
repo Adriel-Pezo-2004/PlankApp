@@ -12,7 +12,7 @@ import { Router } from '@angular/router';
   template: `
   <div class="buscar-container">
     <div class="buscador">
-      <input [(ngModel)]="query" placeholder="Buscar artista" />
+      <input [(ngModel)]="query" placeholder="Buscar artista" (keyup.enter)="buscarArtistas()" />
       <button (click)="buscarArtistas()" [disabled]="loading">Buscar</button>
     </div>
 
