@@ -10,32 +10,46 @@ body, html {
   padding: 0;
   height: 100%;
   width: 100%;
-}
-
-.login-container {
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  min-height: 80vh; /* Usa min-height en lugar de height */
-  width: 100%;
-  padding: 20px;
-  background-color: #f5f5f5; /* Opcional: añade un fondo sutil */
+  align-items: center; 
 }
 
-form {
-  background: #ffffff;
-  padding: 30px;
-  border-radius: 12px;
-  box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+.container {
   width: 100%;
-  max-width: 400px; /* Define un ancho máximo para responsividad */
+  height: 80.3vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #121212; 
+}
+
+.perfil-container {
+  max-width: 600px;
+  width: 90%; // Ajustamos el ancho para que no sea demasiado grande en pantallas pequeñas
+  padding: 2rem; // Padding máximo de 2rem
+  background-color: #c9c1c1;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  animation: fadeIn 0.5s ease-in-out;
   display: flex;
   flex-direction: column;
-  margin: 0 auto; /* Centrado adicional */
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 header {
+  text-align: center;
   margin-bottom: 20px;
 }
 
@@ -47,28 +61,15 @@ header h2 {
   color: #333;
 }
 
-label {
-  font-weight: 600;
-  margin-top: 12px;
-  margin-bottom: 5px;
-  text-align: left;
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-}
-
-input {
-  width: 100%;
-  padding: 12px;
-  margin-top: 5px;
-  margin-bottom: 10px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+p {
   font-size: 16px;
+  margin: 10px 0;
   font-family: 'Inter', sans-serif;
 }
 
 button {
-  margin-top: 20px;
+  display: block;
+  margin: 20px auto;
   padding: 14px;
   background-color: #007bff;
   color: white;
@@ -83,11 +84,4 @@ button {
 
 button:hover {
   background-color: #0056b3;
-}
-
-p.error {
-  color: #e53935;
-  margin-top: 15px;
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
 }
