@@ -618,6 +618,105 @@ app.put('/api/change-password', verifyToken, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/agregar-cancion:
+ *   post:
+ *     summary: Agrega una canción de Spotify a la lista de "to-do" del usuario
+ *     description: Agrega una canción específica de Spotify a la lista de "to-do" de un usuario.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - usuario_id
+ *               - spotify_cancion_id
+ *             properties:
+ *               usuario_id:
+ *                 type: integer
+ *                 description: ID del usuario que agrega la canción
+ *               spotify_cancion_id:
+ *                 type: string
+ *                 description: ID de la canción en Spotify que se va a agregar
+ *     responses:
+ *       201:
+ *         description: Canción agregada correctamente
+ *       400:
+ *         description: Faltan campos requeridos
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Canción no encontrada en Spotify
+ *       409:
+ *         description: La canción ya está en tu lista de "to-do"
+ *       500:
+ *         description: Error en el servidor
+ */
+app.post('/api/agregar-cancion', verifyToken, async (req, res) => {
+  const { usuario_id, spotify_cancion_id } = req.body;
+
+  if (!usuario_id || !spotify_cancion_id) {
+    return res.status(400).json({ error: 'Faltan campos requeridos' });
+  }
+
+  // Verificar que el usuario que realiza la solicitud es el mismo que el usuario_id
+  if (req.user.id !== usuario_id) {
+    return res.status(401).json({ error: 'No tienes permiso para agregar esta canción' });
+  }
+
+  let connection;
+  try {
+    connection = await getConnection();
+
+    // Verificar si la canción ya está en la lista del usuario
+    const [existingSongs] = await connection.execute(
+      'SELECT id FROM todo_canciones WHERE usuario_id = ? AND spotify_cancion_id = ?',
+      [usuario_id, spotify_cancion_id]
+    );
+
+    if (existingSongs.length > 0) {
+      return res.status(409).json({ error: 'La canción ya está en tu lista de "to-do"' });
+    }
+
+    // Verificar que la canción existe en Spotify
+    const token = await getSpotifyToken();
+    const spotifyResponse = await axios.get(`https://api.spotify.com/v1/tracks/${spotify_cancion_id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!spotifyResponse.data) {
+      return res.status(404).json({ error: 'Canción no encontrada en Spotify' });
+    }
+
+    // Insertar la canción en la tabla todo_canciones
+    const [result] = await connection.execute(
+      'INSERT INTO todo_canciones (usuario_id, spotify_cancion_id) VALUES (?, ?)',
+      [usuario_id, spotify_cancion_id]
+    );
+
+    res.status(201).json({ 
+      message: 'Canción agregada correctamente', 
+      id: result.insertId,
+      cancion: spotifyResponse.data // Opcional: devolver los detalles de la canción de Spotify
+    });
+  } catch (error) {
+    console.error('Error al agregar canción:', error);
+
+    if (error.response && error.response.status === 404) {
+      return res.status(404).json({ error: 'Canción no encontrada en Spotify' });
+    }
+
+    res.status(500).json({ error: 'Error al agregar la canción' });
+  } finally {
+    if (connection) connection.end();
+  }
+});
+
 // Ruta para cerrar sesión (opcional, generalmente se maneja en el frontend)
 app.post('/api/logout', (req, res) => {
   // Aquí puedes realizar cualquier acción adicional necesaria para el cierre de sesión
