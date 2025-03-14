@@ -633,12 +633,12 @@ app.put('/api/change-password', verifyToken, async (req, res) => {
  *             type: object
  *             required:
  *               - usuario_id
- *               - spotify_cancion_id
+ *               - cancion_id
  *             properties:
  *               usuario_id:
  *                 type: integer
  *                 description: ID del usuario que agrega la canción
- *               spotify_cancion_id:
+ *               cancion_id:
  *                 type: string
  *                 description: ID de la canción en Spotify que se va a agregar
  *     responses:
@@ -656,9 +656,9 @@ app.put('/api/change-password', verifyToken, async (req, res) => {
  *         description: Error en el servidor
  */
 app.post('/api/agregar-cancion', verifyToken, async (req, res) => {
-  const { usuario_id, spotify_cancion_id } = req.body;
+  const { usuario_id, cancion_id, artista } = req.body;
 
-  if (!usuario_id || !spotify_cancion_id) {
+  if (!usuario_id || !cancion_id || !artista) {
     return res.status(400).json({ error: 'Faltan campos requeridos' });
   }
 
@@ -673,8 +673,8 @@ app.post('/api/agregar-cancion', verifyToken, async (req, res) => {
 
     // Verificar si la canción ya está en la lista del usuario
     const [existingSongs] = await connection.execute(
-      'SELECT id FROM todo_canciones WHERE usuario_id = ? AND spotify_cancion_id = ?',
-      [usuario_id, spotify_cancion_id]
+      'SELECT id FROM todo_canciones WHERE usuario_id = ? AND cancion_id = ?',
+      [usuario_id, cancion_id]
     );
 
     if (existingSongs.length > 0) {
@@ -683,7 +683,7 @@ app.post('/api/agregar-cancion', verifyToken, async (req, res) => {
 
     // Verificar que la canción existe en Spotify
     const token = await getSpotifyToken();
-    const spotifyResponse = await axios.get(`https://api.spotify.com/v1/tracks/${spotify_cancion_id}`, {
+    const spotifyResponse = await axios.get(`https://api.spotify.com/v1/tracks/${cancion_id}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -695,8 +695,8 @@ app.post('/api/agregar-cancion', verifyToken, async (req, res) => {
 
     // Insertar la canción en la tabla todo_canciones
     const [result] = await connection.execute(
-      'INSERT INTO todo_canciones (usuario_id, spotify_cancion_id) VALUES (?, ?)',
-      [usuario_id, spotify_cancion_id]
+      'INSERT INTO todo_canciones (usuario_id, cancion_id, artista) VALUES (?, ?, ?)',
+      [usuario_id, cancion_id, artista]
     );
 
     res.status(201).json({ 

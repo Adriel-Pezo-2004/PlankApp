@@ -2,6 +2,7 @@ import { Component, OnInit, HostListener, Inject, PLATFORM_ID } from '@angular/c
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { HttpClientModule } from '@angular/common/http';
+import { HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { isPlatformBrowser } from '@angular/common';
 
@@ -28,6 +29,8 @@ import { isPlatformBrowser } from '@angular/common';
         </div>
 
         <div class="main-content">
+          <button class="add-discography-button" (click)="addDiscographyToTodo()">Agregar toda la discografía</button>
+
           <section *ngIf="albums.length" class="section-container">
             <h2>Álbumes de Estudio</h2>
             <div class="grid-container">
@@ -44,6 +47,7 @@ import { isPlatformBrowser } from '@angular/common';
                     <li *ngFor="let track of album.tracks">
                       <span class="track-number">{{ track.track_number }}</span>
                       <span class="track-name">{{ track.name }}</span>
+                      <button class="add-button" (click)="addTrackToTodo(track.id, artist.name)">Agregar canción</button>
                     </li>
                   </ul>
                 </div>
@@ -55,6 +59,7 @@ import { isPlatformBrowser } from '@angular/common';
                   </span>
                   {{ album.expanded ? 'Ver menos' : 'Ver más canciones...' }}
                 </div>
+                <button class="add-album-button" (click)="addAlbumToTodo(album.id)">Agregar álbum</button>
               </div>
             </div>
           </section>
@@ -75,6 +80,7 @@ import { isPlatformBrowser } from '@angular/common';
                     <li *ngFor="let track of single.tracks">
                       <span class="track-number">{{ track.track_number }}</span>
                       <span class="track-name">{{ track.name }}</span>
+                      <button class="add-button" (click)="addTrackToTodo(track.id, artist.name)">Agregar canción</button>
                     </li>
                   </ul>
                 </div>
@@ -86,6 +92,7 @@ import { isPlatformBrowser } from '@angular/common';
                   </span>
                   {{ single.expanded ? 'Ver menos' : 'Ver más canciones...' }}
                 </div>
+                <button class="add-discography-button" (click)="addAlbumToTodo(single.id)">Agregar sencillo/EP</button>
               </div>
             </div>
           </section>
@@ -106,6 +113,7 @@ import { isPlatformBrowser } from '@angular/common';
                     <li *ngFor="let track of appear.tracks">
                       <span class="track-number">{{ track.track_number }}</span>
                       <span class="track-name">{{ track.name }}</span>
+                      <button class="add-button" (click)="addTrackToTodo(track.id, artist.name)">Agregar canción</button>
                     </li>
                   </ul>
                 </div>
@@ -117,6 +125,7 @@ import { isPlatformBrowser } from '@angular/common';
                   </span>
                   {{ appear.expanded ? 'Ver menos' : 'Ver más canciones...' }}
                 </div>
+                <button class="add-button" (click)="addAlbumToTodo(appear.id)">Agregar aparición</button>
               </div>
             </div>
           </section>
@@ -135,6 +144,7 @@ export class MusicaArtistasComponent implements OnInit {
   loading = false;
   error = '';
   isVisible: boolean[] = [];
+  currentUserId: number | null = null;
   private isBrowser: boolean;
 
   constructor(
@@ -143,7 +153,20 @@ export class MusicaArtistasComponent implements OnInit {
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
-  }
+    
+    // Obtén el ID del usuario desde el localStorage si estás en el navegador
+    if (this.isBrowser) {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          this.currentUserId = user.id;
+        } catch (e) {
+          console.error('Error al parsear los datos del usuario:', e);
+        }
+      }
+    }
+  } 
 
   ngOnInit(): void {
     this.route.params.subscribe(params => {
@@ -227,5 +250,123 @@ export class MusicaArtistasComponent implements OnInit {
     }
     const h = Math.abs(hash) % 360;
     return `hsl(${h}, 70%, 35%)`;
+  }
+
+  // Método para agregar una canción a la lista de "to-do"
+  addTrackToTodo(trackId: string, artistName: string): void {
+    // Verifica si el usuario está autenticado
+    if (!this.currentUserId) {
+      alert('Debes iniciar sesión para agregar canciones.');
+      // Podrías redirigir al usuario a la página de inicio de sesión
+      return;
+    }
+    
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      // Podrías redirigir al usuario a la página de inicio de sesión
+      return;
+    }
+    
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+    
+    this.http.post(
+      'http://localhost:3000/api/agregar-cancion',
+      { usuario_id: this.currentUserId, cancion_id: trackId, artista: artistName },
+      { headers }
+    ).subscribe({
+      next: (response) => {
+        console.log('Canción agregada:', response);
+        alert('Canción agregada a tu lista de "to-do"');
+      },
+      error: (err) => {
+        console.error('Error al agregar canción:', err);
+        
+        // Manejo específico según el tipo de error
+        if (err.status === 401) {
+          alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+          // Aquí podrías implementar un refresh token o redirigir al login
+        } else if (err.status === 409) {
+          alert('Esta canción ya está en tu lista de "to-do"');
+        } else {
+          alert('Error al agregar la canción: ' + (err.error?.error || 'Error desconocido'));
+        }
+      }
+    });
+  }
+
+  // Método para agregar un álbum completo a la lista de "to-do"
+  addAlbumToTodo(albumId: string): void {
+    if (!this.currentUserId) {
+      alert('Debes iniciar sesión para agregar álbumes.');
+      return;
+    }
+    
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      return;
+    }
+    
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+    
+    this.http.get<any>(`http://localhost:3000/api/canciones/${albumId}`, { headers })
+      .subscribe({
+        next: (data) => {
+          const tracks = data.items || [];
+          if (Array.isArray(tracks)) {
+            this.addTracksSequentially(tracks, this.artist.name);
+          } else {
+            console.error('Error: tracks no es un array');
+            alert('Error al agregar el álbum');
+          }
+        },
+        error: (err) => {
+          console.error('Error al obtener canciones del álbum:', err);
+          if (err.status === 401) {
+            alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+          } else {
+            alert('Error al agregar el álbum');
+          }
+        }
+      });
+  }
+
+  // Método para agregar canciones secuencialmente con retraso
+  addTracksSequentially(tracks: any[], artistName: string, index: number = 0): void {
+    if (index >= tracks.length) {
+      alert('Álbum agregado a tu lista de "to-do"');
+      return;
+    }
+
+    this.addTrackToTodo(tracks[index].id, artistName);
+    setTimeout(() => {
+      this.addTracksSequentially(tracks, artistName, index + 1);
+    }, 1000); // Retraso de 1 segundo entre cada solicitud
+  }
+
+  // Método para agregar toda la discografía del artista a la lista de "to-do"
+  addDiscographyToTodo(): void {
+    if (!this.currentUserId) {
+      alert('Debes iniciar sesión para agregar la discografía.');
+      return;
+    }
+    const usuario_id = 1; // Aquí deberías obtener el ID del usuario autenticado
+    const allTracks = [...this.albums, ...this.singles, ...this.appearances]
+      .flatMap(album => album.tracks || [])
+      .map(track => track.id);
+
+    allTracks.forEach(trackId => {
+      this.addTrackToTodo(trackId, this.artist.name);
+    });
+
+    alert('Toda la discografía ha sido agregada a tu lista de "to-do"');
   }
 }
